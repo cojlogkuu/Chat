@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  firstName  String   @map("first_name")
+  lastName   String?  @map("last_name")
+  email      String   @unique
+  isOnline   Boolean  @default(false) @map("is_online")
+  lastOnline DateTime @default(now()) @map("last_online")
+  password   String
+
+  ownedGroups       Group[]        @relation("owner")
+  groups            GroupMember[]  @relation("member")
+  sentGroupMessages GroupMessage[] @relation("groupSender")
+
+  sentPrivateMessages     PrivateMessage[] @relation("sender")
+  receivedPrivateMessages PrivateMessage[] @relation("receiver")
+
+  @@map("users")
+}
+
+model PrivateMessage {
+  id      Int      @id @default(autoincrement())
+  sentAt  DateTime @default(now()) @map("sent_at")
+  text    String
+  fileUrl String?  @map("file_url")
+
+  senderId Int  @map("sender_id")
+  sender   User @relation("sender", fields: [senderId], references: [id])
+
+  receiverId Int  @map("receiver_id")
+  receiver   User @relation("receiver", fields: [receiverId], references: [id])
+
+  @@map("private_messages")
+}
+
+model Group {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  title     String
+
+  ownerId Int?  @map("owner_id")
+  owner   User? @relation("owner", fields: [ownerId], references: [id])
+
+  members       GroupMember[]  @relation("group")
+  groupMessages GroupMessage[] @relation("groupReceiver")
+
+  @@map("groups")
+}
+
+model GroupMember {
+  joinedAt DateTime  @default(now()) @map("joined_at")
+  role     GroupRole @default(MEMBER)
+
+  memberId Int  @map("member_id")
+  member   User @relation("member", fields: [memberId], references: [id])
+
+  groupId Int   @map("group_id")
+  group   Group @relation("group", fields: [groupId], references: [id])
+
+  @@id([memberId, groupId])
+  @@map("group_members")
+}
+
+model GroupMessage {
+  id      Int      @id @default(autoincrement())
+  sentAt  DateTime @default(now()) @map("sent_at")
+  text    String
+  fileUrl String?  @map("file_url")
+
+  senderId Int  @map("sender_id")
+  sender   User @relation("groupSender", fields: [senderId], references: [id])
+
+  groupId Int   @map("group_id")
+  group   Group @relation("groupReceiver", fields: [groupId], references: [id])
+
+  @@map("group_messages")
+}
+
+enum GroupRole {
+  ADMIN
+  MEMBER
+}
